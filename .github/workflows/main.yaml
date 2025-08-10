@@ -1,0 +1,50 @@
+name: Build and Release Windows Executable
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置Python环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r requirements.txt
+
+      - name: 构建可执行文件
+        run: |
+          pyinstaller --onefile --add-data "config.json;." g.py
+
+      - name: 移动可执行文件和配置
+        run: |
+          mkdir dist_release
+          move dist\g.exe dist_release\
+          copy config.json dist_release\
+
+      - name: 上传Release资源
+        uses: actions/upload-artifact@v4
+        with:
+          name: gmonitor-windows
+          path: dist_release/*
+
+      - name: 发布Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: dist_release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
